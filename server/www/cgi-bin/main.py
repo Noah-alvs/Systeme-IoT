@@ -19,8 +19,14 @@ html = """
   <input type="radio" id="off" name="val" value="led_off">
   <label for="off">Éteindre</label><br><br>
 
+  <input type="radio" id="blink" name="val" value="led_blink">
+  <label for="blink">Clignoter toutes les</label>
+  <input type="number" id="ms" value="500" min="100" max="9999" style="width:60px">
+  <label>ms</label><br><br>
+
   <input type="submit" value="Envoyer">
 </form>
+
 </body>
 """
 
