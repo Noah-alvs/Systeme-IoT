@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -24,16 +24,17 @@ def on_connect(client, userdata, flags, rc):
 
 client.on_connect = on_connect
 client.connect(BROKER_IP, BROKER_PORT, 60)
-#client.loop_start()  # thread interne non bloquant
+client.loop_start()  # thread interne non bloquant
 
 sys.stderr.write("Gateway en attente sur %s...\n" % FIFO_PATH)
 
 fifo_s2f = open(FIFO_PATH,'r') #Ouverture de la fifo s2f en lecture, afin de récupérer les infos écritent pas le serveur HTTP.
 
 while True:
-    ligne = fifo.readline() #Récupération des données.
+    ligne = fifo_s2f.readline() #Récupération des données.
 
     commande = ligne.strip() #Copie de la chaîne, dans laquelle les caractèes d'espacement sont retirés en début et fin de chaîne.
-    continue
+    if not commande:
+        continue
 
     sys.stderr.write("Commande recue depuis FIFO : %s\n" % commande)

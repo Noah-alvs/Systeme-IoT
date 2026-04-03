@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import cgi, os, time,sys
@@ -25,7 +25,7 @@ val = form.getvalue('val')
 
 
 #Ecriture des données dans la FIFO
-s2f = open(s2fName,'w+')
+s2f = open(s2fName,'w')
 s2f.write("%s\n" % val)
 sys.stderr.write("La donnee val=%s mise dans la FIFO\n" % val)
 s2f.flush()
@@ -33,8 +33,8 @@ s2f.close()
 
 
 
-print "Content-Type: text/html; charset=utf-8"
-print ""  # ligne vide obligatoire
+print("Content-Type: text/html; charset=utf-8")
+print ("") 
 
 
 # Générer le code HTML pour la réponse

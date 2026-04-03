@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-print "Content-Type: text/html"
+print ("Content-Type: text/html")
 
-print ""
+print ("")
 
 html = """
 <head>
@@ -24,4 +24,4 @@ html = """
 </body>
 """
 
-print html
+print (html)
