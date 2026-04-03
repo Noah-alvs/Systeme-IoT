@@ -38,3 +38,5 @@ while True:
         continue
 
     sys.stderr.write("Commande recue depuis FIFO : %s\n" % commande)
+    client.publish(TOPIC_LED, commande)
+    sys.stderr.write("Publie sur %s : %s\n" % (TOPIC_LED, commande))
