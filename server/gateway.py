@@ -11,7 +11,11 @@ import sys, os
 FIFO_PATH  = '/tmp/s2f_fw'
 BROKER_IP  = 'localhost'   # adresse du broker Mosquitto.
 BROKER_PORT = 1883
-TOPIC_LED      = 'esp32/led'   # topic MQTT que l'ESP32 va recevoir.
+
+# topic MQTT que l'ESP32 va recevoir.
+TOPIC_LED      = 'esp32/led'  
+TOPIC_BUZZER = 'esp32/buzzer'
+TOPIC_OLED   = 'esp32/oled'
 
 
 client = mqtt.Client() # Création d'une instance client.
@@ -35,8 +39,21 @@ while True:
 
     commande = ligne.strip() #Copie de la chaîne, dans laquelle les caractèes d'espacement sont retirés en début et fin de chaîne.
     if not commande:
+        # EOF : cmd.py a ferme la FIFO, on reouvre
+        fifo_s2f.close()
+        fifo_s2f = open(FIFO_PATH, 'r')
         continue
 
-    sys.stderr.write("Commande recue depuis FIFO : %s\n" % commande)
-    client.publish(TOPIC_LED, commande)
-    sys.stderr.write("Publie sur %s : %s\n" % (TOPIC_LED, commande))
+    # Choisir le topic selon le prefixe de la commande
+    if commande.startswith("led"):
+        topic = TOPIC_LED
+    elif commande.startswith("buzzer"):
+        topic = TOPIC_BUZZER
+    elif commande.startswith("oled"):
+        topic = TOPIC_OLED
+    else:
+        sys.stderr.write("Commande inconnue : %s\n" % commande)
+        continue
+ 
+    client.publish(topic, commande)
+    sys.stderr.write("Publie sur %s : %s\n" % (topic, commande))

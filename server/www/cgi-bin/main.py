@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 print ("Content-Type: text/html")
-
 print ("")
 
 html = """
@@ -11,31 +10,86 @@ html = """
   <title>Peri Web Server</title>
 </head>
 <body>
-<h1>Contrôle de la LED du ESP32</h1>
-<form method="POST" action="led.py" onsubmit="injectBlink()">
-  
+<h1>Controle du ESP32</h1>
+
+<hr>
+<h2>LED</h2>
+<form method="POST" action="cmd.py" onsubmit="injectBlink()">
   <input type="radio" id="on" name="val" value="led_on">
   <label for="on">Allumer</label><br><br>
 
   <input type="radio" id="off" name="val" value="led_off">
-  <label for="off">Éteindre</label><br><br>
+  <label for="off">Eteindre</label><br><br>
 
   <input type="radio" id="blink" name="val" value="">
   <label for="blink">Clignoter toutes les</label>
-  <input type="number" id="ms" value="500" min="100" max="9999" style="width:60px">
+  <input type="number" id="ms" value="500" min="100" max="9999" style="width:60px"
+         onfocus="document.getElementById('blink').checked=true">
   <label>ms</label><br><br>
 
   <input type="submit" value="Envoyer">
 </form>
 
+<hr>
+<h2>Buzzer</h2>
+<form method="POST" action="cmd.py">
+  <input type="radio" id="buz_on" name="val" value="buzzer_on">
+  <label for="buz_on">Activer</label><br><br>
+
+  <input type="radio" id="buz_off" name="val" value="buzzer_off">
+  <label for="buz_off">Desactiver</label><br><br>
+
+  <input type="radio" id="buz_beep" name="val" value="" onclick="injectBeep()">
+  <label for="buz_beep">Biper</label>
+ <input type="number" id="beep_n" value="3" min="1" max="20" style="width:40px"
+         onfocus="document.getElementById('buz_beep').checked=true; injectBeep()">
+  <label>fois</label><br><br>
+
+  <input type="submit" value="Envoyer">
+</form>
+
+<hr>
+<h2>Ecran OLED</h2>
+<form method="POST" action="cmd.py" onsubmit="return injectOled()">
+  <input type="hidden" name="val" id="val_oled">
+
+  <input type="radio" id="oled_txt" name="val_radio">
+  <label for="oled_txt">Afficher :</label>
+  <input type="text" id="oled_msg" maxlength="32" style="width:200px" placeholder="texte a afficher"
+         onfocus="document.getElementById('oled_txt').checked=true"><br><br>
+
+  <input type="radio" id="oled_clear" name="val_radio">
+  <label for="oled_clear">Effacer l'ecran</label><br><br>
+
+  <input type="submit" value="Envoyer">
+</form>
+
 <script>
-  // Injecte la valeur led_blink:XXX dans le radio blink juste avant l'envoi du formulaire
+  // Injecte led_blink:XXX avant envoi
   function injectBlink() {
     var blink = document.getElementById('blink');
     if (blink.checked) {
-      var ms = document.getElementById('ms').value || 500;
-      blink.value = 'led_blink:' + ms;
+      blink.value = 'led_blink:' + (document.getElementById('ms').value || 500);
     }
+  }
+
+  // Injecte buzzer_beep:N quand on clique sur la radio beep
+  function injectBeep() {
+    var beep = document.getElementById('buz_beep');
+    beep.value = 'buzzer_beep:' + (document.getElementById('beep_n').value || 3);
+  }
+
+  // Injecte oled:texte avant envoi
+  function injectOled() {
+    var hidden = document.getElementById('val_oled');
+    if (document.getElementById('oled_txt').checked) {
+      var texte = document.getElementById('oled_msg').value;
+      if (texte === '') { alert('Entrez un texte.'); return false; }
+      hidden.value = 'oled:' + texte;       // écrit dans le hidden
+    } else if (document.getElementById('oled_clear').checked) {
+      hidden.value = 'oled_clear';           // écrit dans le hidden
+    }
+    return true;
   }
 </script>
 </body>
