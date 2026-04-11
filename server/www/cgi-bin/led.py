@@ -38,31 +38,12 @@ print ("")
 
 
 # Générer le code HTML pour la réponse
-html = """
-<head> 
+print("""
+<head>
   <meta charset="utf-8">
-  <title>Peri Web Server - LED Control</title>
   <META HTTP-EQUIV="Refresh" CONTENT="1; URL=/cgi-bin/main.py">
 </head>
 <body>
-<h1>Contrôle des LEDs</h1>
-<form method="POST" action="led.py">
-  <input type="radio" id="on" name="val" value="ON" {0}>
-  <label for="on">Allumer</label><br><br>
-
-  <input type="radio" id="off" name="val" value="OFF" {1}>
-  <label for="off">Éteindre</label><br><br>
-
-  <input type="submit" value="Envoyer">
-</form>
-<p>Valeur envoyée : {2}</p>
+<p>Commande envoyee : %s</p>
 </body>
-""".format(
-    'checked' if val == 'ON' else '',
-    'checked' if val == 'OFF' else '',
-    val if val else 'Aucune valeur envoyée'
-)
-
-# Envoyer l'entête HTTP et le code HTML
-print("Content-Type: text/html\n")
-print(html)
+""" % val)
