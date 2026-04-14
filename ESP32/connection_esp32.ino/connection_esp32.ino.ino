@@ -22,16 +22,24 @@ const char* BROKER_IP   = "172.20.10.10";  //ip du pc ou de la RPI
 const int   BROKER_PORT = 1883;
 
 
-// TOPICS
+// TOPICS broker -> esp32
 const char* TOPIC_LED    = "esp32/led";
 const char* TOPIC_BUZZER = "esp32/buzzer";
 const char* TOPIC_OLED   = "esp32/oled";
 
+//TOPICS esp32 -> broker
+const char* TOPIC_LUMIERE  = "esp32/lumiere";
+
 // PINs
 #define BUZZER_PIN 17
+#define PHOTORESISTANCE_PIN 36
+#define BP_PIN 23
+
+//define OLED
 #define SCREEN_WIDTH  128
 #define SCREEN_HEIGHT  64
 #define OLED_RESET     16
+
 
 // Variables blink LED
 bool  blink_actif    = false; // Mode blink activé ou non
@@ -51,6 +59,10 @@ long buz_beep_last  = 0;
 
 // Declaration de l'objet display (OLED)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+//Variable pour la Photoresistance
+long capteur_last = 0;
+#define CAPTEUR_INTERVAL 2000 
 
 WiFiClient   wifiClient; //Client wifi
 PubSubClient mqttClient(wifiClient); // Création de l'objet client pour gérer la connexion MQTT
@@ -182,6 +194,8 @@ void setup_oled() {
   Serial.println("[OLED] Initialise.");
 }
 
+
+
 //Connexion Wifi
 void setup_wifi() {
    //Initialise la connexion wifi de l'esp32 
@@ -192,7 +206,7 @@ void setup_wifi() {
   Serial.print(ssid);
   Serial.println("...");
   while(WiFi.status() != WL_CONNECTED){
-    //delay(1000);
+    delay(1000);
     Serial.print(".");
   }
 
@@ -233,7 +247,7 @@ void setup_mqtt(){
       Serial.print(" Echec rc=");
       Serial.print(mqttClient.state());
       Serial.println(" - nouvelle tentative dans 2s");
-      //delay(2000);
+      delay(2000);
     }
   }
 }
@@ -273,10 +287,21 @@ void loop_buzzer(){
   }
 }
 
+void loop_photoresistance(){
+  if (millis() - capteur_last >= (unsigned long)CAPTEUR_INTERVAL) { // millis : retourne le nombre de ms écoulées depuis le démarrage de l'esp32
+    int lum = analogRead(PHOTORESISTANCE_PIN);
+    mqttClient.publish(TOPIC_LUMIERE, String(lum).c_str());
+    Serial.print("[CAPTEUR] Luminosite : ");
+    Serial.println(lum);
+    capteur_last = millis();
+  }
+}
+
 void loop() {
   if (!mqttClient.connected()) setup_mqtt(); // reconnexion si coupure
   mqttClient.loop(); //Déclenche on_message si mesage en attente
 
   loop_led();
   loop_buzzer();
+  loop_photoresistance();
 }

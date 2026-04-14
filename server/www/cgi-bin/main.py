@@ -32,17 +32,17 @@ html = """
 
 <hr>
 <h2>Buzzer</h2>
-<form method="POST" action="cmd.py">
+<form method="POST" action="cmd.py" onsubmit="injectBeep()">
   <input type="radio" id="buz_on" name="val" value="buzzer_on">
   <label for="buz_on">Activer</label><br><br>
 
   <input type="radio" id="buz_off" name="val" value="buzzer_off">
   <label for="buz_off">Desactiver</label><br><br>
 
-  <input type="radio" id="buz_beep" name="val" value="" onclick="injectBeep()">
+  <input type="radio" id="buz_beep" name="val" value="">
   <label for="buz_beep">Biper</label>
- <input type="number" id="beep_n" value="3" min="1" max="20" style="width:40px"
-         onfocus="document.getElementById('buz_beep').checked=true; injectBeep()">
+  <input type="number" id="beep_n" value="3" min="1" max="20" style="width:40px"
+         onfocus="document.getElementById('buz_beep').checked=true">
   <label>fois</label><br><br>
 
   <input type="submit" value="Envoyer">
@@ -64,6 +64,11 @@ html = """
   <input type="submit" value="Envoyer">
 </form>
 
+<hr>
+<h2>Capteurs ESP32</h2>
+
+<p><strong>Luminosite :</strong> <span id="luminosite">--</span></p>
+
 <script>
   // Injecte led_blink:XXX avant envoi
   function injectBlink() {
@@ -76,7 +81,9 @@ html = """
   // Injecte buzzer_beep:N quand on clique sur la radio beep
   function injectBeep() {
     var beep = document.getElementById('buz_beep');
-    beep.value = 'buzzer_beep:' + (document.getElementById('beep_n').value || 3);
+    if (beep.checked) {
+      beep.value = 'buzzer_beep:' + (document.getElementById('beep_n').value || 3);
+    }
   }
 
   // Injecte oled:texte avant envoi
@@ -91,6 +98,18 @@ html = """
     }
     return true;
   }
+
+  function refresh() {
+    fetch('/cgi-bin/get_capteurs.py')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        document.getElementById('luminosite').textContent = data.luminosite || '--';
+      })
+      .catch(function() {});
+  }
+
+  refresh();
+  setInterval(refresh, 2000);
 </script>
 </body>
 """

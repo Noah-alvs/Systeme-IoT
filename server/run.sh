@@ -25,6 +25,12 @@ if [ ! -p /tmp/s2f_fw ]; then
     echo "FIFO /tmp/s2f_fw creee"
 fi
 
+# Creer la FIFO si elle n'existe pas encore
+if [ ! -p /tmp/f2s_fw ]; then
+    mkfifo /tmp/f2s_fw
+    echo "FIFO /tmp/f2s_fw creee"
+fi
+
 echo "Lancement de la Gateway et du Serveur HTTP..."
 
 # Lancer la gateway dans un nouveau terminal
