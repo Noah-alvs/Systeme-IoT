@@ -21,6 +21,9 @@ html = """
   <input type="radio" id="off" name="val" value="led_off">
   <label for="off">Eteindre</label><br><br>
 
+  <input type="radio" id="led_auto" name="val" value="led_auto">
+  <label for="led_auto">Auto (luminosite)</label><br><br>
+
   <input type="radio" id="blink" name="val" value="">
   <label for="blink">Clignoter toutes les</label>
   <input type="number" id="ms" value="500" min="100" max="9999" style="width:60px"
@@ -103,7 +106,7 @@ html = """
     fetch('/cgi-bin/get_capteurs.py')
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        document.getElementById('luminosite').textContent = data.luminosite || '--';
+        document.getElementById('luminosite').textContent = (data.luminosite !== null ? data.luminosite + '%' : '--');
       })
       .catch(function() {});
   }

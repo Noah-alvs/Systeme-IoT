@@ -35,17 +35,15 @@ const char* TOPIC_LUMIERE  = "esp32/lumiere";
 #define PHOTORESISTANCE_PIN 36
 #define BP_PIN 23
 
-//define OLED
-#define SCREEN_WIDTH  128
-#define SCREEN_HEIGHT  64
-#define OLED_RESET     16
 
 
-// Variables blink LED
+
+// Variables LED
 bool  blink_actif    = false; // Mode blink activé ou non
 int   blink_interval = 500;
 bool  blink_etat     = false; // Etat actuelle de la Led, allumé ou éteinte
 long  blink_last     = 0;
+bool led_auto_actif = false; // Quand actif, la frequence de blink varie en fonction de la photoresistance
 
 // Variables beep buzzer
 bool buz_beep_actif = false;
@@ -57,38 +55,171 @@ long buz_beep_last  = 0;
 #define BUZZER_FREQ     1000  // frequence en Hz
 #define BUZZER_RES      8     // resolution 8 bits (valeurs 0-255)
 
+//define et variable OLED
+#define SCREEN_WIDTH  128
+#define SCREEN_HEIGHT  64
+#define OLED_RESET     16
+String oled_texte_site = ""; //Stocke le dernier texte envoye depuis le site web. step_oled_lum l'affiche en ligne 2 a chaque rafraichissement.
+
 // Declaration de l'objet display (OLED)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-//Variable pour la Photoresistance
-long capteur_last = 0;
-#define CAPTEUR_INTERVAL 2000 
 
 WiFiClient   wifiClient; //Client wifi
 PubSubClient mqttClient(wifiClient); // Création de l'objet client pour gérer la connexion MQTT
 
 
-//Gestion LED
+// WaitFor : timer non bloquant Divise le temps en periodes et retourne 1
+// quand une nouvelle periode est ecoulee.
+#define MAX_WAIT_FOR_TIMER 4
+unsigned long waitFor(int timer, unsigned long period) {
+  static unsigned long last_period[MAX_WAIT_FOR_TIMER];  // il y a autant de timers que de tâches
+  unsigned long current = micros() / period;             // numéro de période
+  unsigned long delta   = current - last_period[timer];  // gère le wrap-around
+  if (delta) last_period[timer] = current;               // mise à jour si déclenchement
+  return delta;                                          // nombre de periode depuis le dernier appel
+}
+
+
+
+// Mailbox : boite aux lettres entre deux taches
+// Producteur ecrit si EMPTY, consommateur lit si FULL
+enum { EMPTY, FULL };
+
+typedef struct {
+  int state;  // EMPTY ou FULL
+  int val;    // valeur deposee par le producteur
+} mailbox_t;
+
+
+typedef struct { int timer; unsigned long period; } ctx_lum_t;
+typedef struct { int timer; unsigned long period; } ctx_mqtt_t;
+typedef struct { int timer; unsigned long period; } ctx_oled_t;
+
+mailbox_t mb_lum_oled = { .state = EMPTY };
+mailbox_t mb_lum_mqtt = { .state = EMPTY };
+mailbox_t mb_lum_led  = { .state = EMPTY };
+
+// Prototypes
+void init_lum(ctx_lum_t* ctx, int timer, unsigned long period);
+void step_lum(ctx_lum_t* ctx, mailbox_t* mb_oled, mailbox_t* mb_mqtt, mailbox_t* mb_led);
+void init_mqtt_lum(ctx_mqtt_t* ctx, int timer, unsigned long period);
+void step_mqtt_lum(ctx_mqtt_t* ctx, mailbox_t* mb);
+void init_oled_lum(ctx_oled_t* ctx, int timer, unsigned long period);
+void step_oled_lum(ctx_oled_t* ctx, mailbox_t* mb);
+
+
+
+void init_lum(ctx_lum_t* ctx, int timer, unsigned long period) {
+  ctx->timer  = timer;
+  ctx->period = period;
+}
+
+void step_lum(ctx_lum_t* ctx, mailbox_t* mb_oled, mailbox_t* mb_mqtt, mailbox_t* mb_led) {
+    if (!waitFor(ctx->timer, ctx->period)) return;
+
+    int v   = analogRead(PHOTORESISTANCE_PIN);
+    int pct = map(v, 0, 4095, 100, 0);  // conversion en pourcentage : 0=sombre, 100=lumineux
+
+    // Deposer dans chaque mailbox si vide
+    if (mb_oled->state == EMPTY) { mb_oled->val = pct; mb_oled->state = FULL; }
+    if (mb_mqtt->state == EMPTY) { mb_mqtt->val = pct; mb_mqtt->state = FULL; }
+    if (mb_led->state  == EMPTY) { mb_led->val  = pct; mb_led->state  = FULL; }
+}
+
+
+
+
+
+// Tache mqtt_lum — publie la luminosite vers le broker
+void init_mqtt_lum(ctx_mqtt_t* ctx, int timer, unsigned long period) {
+  ctx->timer  = timer;
+  ctx->period = period;
+}
+
+void step_mqtt_lum(ctx_mqtt_t* ctx, mailbox_t* mb) {
+  if (mb->state != FULL) return;       // rien a publier
+  if (!waitFor(ctx->timer, ctx->period)) return;
+
+  mqttClient.publish(TOPIC_LUMIERE, String(mb->val).c_str());
+  Serial.print("[CAPTEUR] Luminosite publiee : ");
+  Serial.print(mb->val);
+  Serial.println("%");
+
+  mb->state = EMPTY;
+}
+
+
+
+
+
+// Tache oled_lum — rafraichit l'ecran OLED :
+//   Ligne 1  : luminosite en % 
+//   Ligne 2  : dernier texte recu du site web
+void init_oled_lum(ctx_oled_t* ctx, int timer, unsigned long period) {
+  ctx->timer  = timer;
+  ctx->period = period;
+}
+
+void step_oled_lum(ctx_oled_t* ctx, mailbox_t* mb) {
+  if (mb->state != FULL) return;
+  if (!waitFor(ctx->timer, ctx->period)) return;
+
+  display.clearDisplay();
+
+  // Ligne 1 — luminosite 
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.print("Lum: ");
+  display.print(mb->val);
+  display.println("%");
+
+  // Ligne 2 — texte recu du site
+  display.setCursor(0, 12);
+  display.println(oled_texte_site);
+
+  display.display();
+  mb->state = EMPTY;
+}
+
+//Contexte des taches
+ctx_lum_t  Lum1;
+ctx_mqtt_t Mqtt1;
+ctx_oled_t Oled1;
+
+
+//Gestion de la LED
 void handle_led(String msg) {
-  if(msg == "led_on"){
-    blink_actif = false;  // stopper le blink si actif
-    blink_etat  = true; //Indique que la LED est allumé
+  if (msg == "led_on") {
+    led_auto_actif = false;   // desactiver le mode auto
+    blink_actif    = false; // stopper le blink si actif
+    blink_etat     = true; //Indique que la LED est allumé
     digitalWrite(LED_BUILTIN, HIGH); //Mettre la LED à l'état haut. 
     Serial.println("[LED] ON");
-  } else if (msg == "led_off"){
-    blink_actif = false;  // stopper le blink si actif
-     blink_etat  = false; //Indique que la LED est eteint
+
+  } else if (msg == "led_off") {
+    led_auto_actif = false;   // desactiver le mode auto
+    blink_actif    = false; // stopper le blink si actif
+    blink_etat     = false; //Indique que la LED est eteint
     digitalWrite(LED_BUILTIN, LOW); //Mettre la LED à l'état bas. 
     Serial.println("[LED] OFF");
-  }else if (msg.startsWith("led_blink:")) {
-    blink_interval = msg.substring(10).toInt(); // extraire le nombre X apres "led_blink:X, correspondnant à l'intervalle"
-    blink_actif = true;
-    blink_etat = false; 
+
+  } else if (msg.startsWith("led_blink:")) { // extraire le nombre X apres "led_blink:X, correspondnant à l'intervalle"
+    led_auto_actif = false;   // desactiver le mode auto
+    blink_interval = msg.substring(10).toInt();
+    blink_actif    = true;  // stopper le blink si actif
+    blink_etat     = false; //Indique que la LED est eteint
     digitalWrite(LED_BUILTIN, LOW); //Commencer le cycle à partir de la Led éteinte
     blink_last = millis();
-    Serial.print("[LED] BLINK intervalle = ");
+    Serial.print("[LED] BLINK ");
     Serial.print(blink_interval);
-    Serial.println(" ms");
+    Serial.println("ms");
+
+  } else if (msg == "led_auto") {
+    // Mode auto : la frequence de blink varie avec la luminosite
+    led_auto_actif = true;
+    blink_actif    = true;   // le blink demarre, loop_led le gere
+    Serial.println("[LED] AUTO - variation selon luminosite");
   }
 }
 
@@ -119,23 +250,17 @@ void handle_buzzer(String msg) {
 }
 
 
-//Gestion OLED
+// Gestion OLED
+// Stock le texte dans oled_text_site qui sera affiché par step_oled_lum
 void handle_oled(String msg) {
   if (msg.startsWith("oled:")) {
-    String texte = msg.substring(5); //extraction du texte à afficher apres "oled:"
-    Serial.print("[OLED] Afficher : ");
-    Serial.println(texte);
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-    display.println(texte);
-    display.display();
+    oled_texte_site = msg.substring(5);  // stocker le texte
+    Serial.print("[OLED] Texte recu : ");
+    Serial.println(oled_texte_site);
 
   } else if (msg == "oled_clear") {
-    Serial.println("[OLED] Clear");
-    display.clearDisplay();
-    display.display();
+    oled_texte_site = "";  // effacer le texte stocké
+    Serial.println("[OLED] Texte efface");
   }
 }
 
@@ -262,10 +387,24 @@ void setup() {
   setup_oled();
   setup_wifi();
   setup_mqtt();
+
+  init_lum(&Lum1,      1, 1000000/2);   // lecture toutes les 0.5s
+  init_mqtt_lum(&Mqtt1, 2, 1000000/2);  // publication toutes les 0.5s
+  init_oled_lum(&Oled1, 3, 1000000/2);   // affichage toutes les 0.5s
 }
 
 // Gestion du blink non bloquant 
 void loop_led(){
+  // Mode auto : adapter l'intervalle de blink a la luminosite
+  if (led_auto_actif && mb_lum_led.state == FULL) {
+    blink_interval   = map(mb_lum_led.val, 0, 100, 2000, 50);
+    blink_actif      = true;
+    mb_lum_led.state = EMPTY;
+    Serial.print("[LED AUTO] intervalle = ");
+    Serial.println(blink_interval);
+  }
+
+  // Mode blink
   if (blink_actif && (millis() - blink_last >= (unsigned long)blink_interval)) {
     blink_etat = !blink_etat;
     digitalWrite(LED_BUILTIN, blink_etat ? HIGH : LOW);
@@ -287,15 +426,6 @@ void loop_buzzer(){
   }
 }
 
-void loop_photoresistance(){
-  if (millis() - capteur_last >= (unsigned long)CAPTEUR_INTERVAL) { // millis : retourne le nombre de ms écoulées depuis le démarrage de l'esp32
-    int lum = analogRead(PHOTORESISTANCE_PIN);
-    mqttClient.publish(TOPIC_LUMIERE, String(lum).c_str());
-    Serial.print("[CAPTEUR] Luminosite : ");
-    Serial.println(lum);
-    capteur_last = millis();
-  }
-}
 
 void loop() {
   if (!mqttClient.connected()) setup_mqtt(); // reconnexion si coupure
@@ -303,5 +433,8 @@ void loop() {
 
   loop_led();
   loop_buzzer();
-  loop_photoresistance();
+
+  step_lum(&Lum1, &mb_lum_oled, &mb_lum_mqtt, &mb_lum_led);
+  step_oled_lum(&Oled1, &mb_lum_oled);
+  step_mqtt_lum(&Mqtt1, &mb_lum_mqtt);
 }
