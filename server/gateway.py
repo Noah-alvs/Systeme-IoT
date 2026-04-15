@@ -20,9 +20,11 @@ TOPIC_OLED   = 'esp32/oled'
 
 #topic MQTT que l'ESP32 va envoyer
 TOPIC_LUMIERE = 'esp32/lumiere'
+TOPIC_BOUTON = 'esp32/bouton'
 
 # Fichiers de stockage, il sera lu par get_capteurs.py
 FICHIER_LUMIERE = '/tmp/capteur_lumiere.txt'
+FICHIER_BOUTON = '/tmp/capteur_bouton.txt'
 
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1) # Création d'une instance client.
@@ -36,7 +38,8 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         sys.stderr.write("Gateway connectee au broker MQTT\n")
         client.subscribe(TOPIC_LUMIERE)
-        sys.stderr.write("Subscribe sur : %s\n" % TOPIC_LUMIERE)
+        client.subscribe(TOPIC_BOUTON)
+        sys.stderr.write("Subscribe sur : %s et %s\n" % (TOPIC_LUMIERE, TOPIC_BOUTON))
     else:
         sys.stderr.write("Erreur connexion broker : rc=%d\n" % rc)
 
@@ -49,6 +52,10 @@ def on_message(client, userdata, msg):
         with open(FICHIER_LUMIERE, 'w') as f:
             f.write(valeur)
         sys.stderr.write("Ecrit dans %s : %s\n" % (FICHIER_LUMIERE, valeur))
+    if msg.topic == TOPIC_BOUTON:
+        with open(FICHIER_BOUTON, 'w') as f:
+            f.write(msg.payload.decode())
+        sys.stderr.write("Ecrit dans %s : %s\n" % (FICHIER_BOUTON, valeur))
 
 client.on_connect = on_connect
 client.on_message = on_message

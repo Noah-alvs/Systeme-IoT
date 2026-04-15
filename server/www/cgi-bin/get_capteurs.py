@@ -9,6 +9,7 @@ print("")
 # Valeurs par defaut
 data = {
     "luminosite" : None,
+    "bouton": None,
 }
 
 # Lire le fichier ecrit par la gateway
@@ -19,5 +20,10 @@ try:
 except OSError:
     # Fichier absent : ESP32 pas encore connecte ou pas encore publie
     sys.stderr.write("Fichier capteur_lumiere.txt absent\n")
- 
+try:
+    with open('/tmp/capteur_bouton.txt', 'r') as f:
+        data['bouton'] = f.read().strip()
+    sys.stderr.write("Bouton lue : %s\n" % data['bouton'])
+except OSError:
+    sys.stderr.write("Fichier capteur_bouton.txt absent\n")
 print(json.dumps(data))

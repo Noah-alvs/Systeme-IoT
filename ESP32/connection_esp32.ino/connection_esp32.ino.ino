@@ -29,6 +29,7 @@ const char* TOPIC_OLED   = "esp32/oled";
 
 //TOPICS esp32 -> broker
 const char* TOPIC_LUMIERE  = "esp32/lumiere";
+const char* TOPIC_BOUTON = "esp32/bouton";
 
 // PINs
 #define BUZZER_PIN 17
@@ -63,6 +64,10 @@ String oled_texte_site = ""; //Stocke le dernier texte envoye depuis le site web
 
 // Declaration de l'objet display (OLED)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+//Variable Bouton Poussoir
+bool bp_etat_prec = HIGH; 
+
 
 WiFiClient   wifiClient; //Client wifi
 PubSubClient mqttClient(wifiClient); // Création de l'objet client pour gérer la connexion MQTT
@@ -319,6 +324,13 @@ void setup_oled() {
   Serial.println("[OLED] Initialise.");
 }
 
+void setup_bp() {
+  pinMode(BP_PIN, INPUT_PULLUP);  // pullup interne
+  // Publier l'etat initial au demarrage
+  bool etat = digitalRead(BP_PIN);
+  mqttClient.publish(TOPIC_BOUTON, etat == LOW ? "appuye" : "relache");
+}
+
 
 
 //Connexion Wifi
@@ -385,6 +397,7 @@ void setup() {
   setup_led();
   setup_buzzer();
   setup_oled();
+  setup_bp();
   setup_wifi();
   setup_mqtt();
 
@@ -426,6 +439,16 @@ void loop_buzzer(){
   }
 }
 
+void loop_bp() {
+  bool etat = digitalRead(BP_PIN);
+  if (etat != bp_etat_prec) {  // publier seulement si changement d'etat
+    bp_etat_prec = etat;
+    mqttClient.publish(TOPIC_BOUTON, etat == LOW ? "appuye" : "relache");
+    Serial.print("[BP] ");
+    Serial.println(etat == LOW ? "appuye" : "relache");
+  }
+}
+
 
 void loop() {
   if (!mqttClient.connected()) setup_mqtt(); // reconnexion si coupure
@@ -433,6 +456,7 @@ void loop() {
 
   loop_led();
   loop_buzzer();
+  loop_bp();
 
   step_lum(&Lum1, &mb_lum_oled, &mb_lum_mqtt, &mb_lum_led);
   step_oled_lum(&Oled1, &mb_lum_oled);

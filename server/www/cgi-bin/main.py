@@ -72,6 +72,8 @@ html = """
 
 <p><strong>Luminosite :</strong> <span id="luminosite">--</span></p>
 
+<p><strong>Bouton :</strong> <span id="bouton">--</span></p>
+
 <script>
   // Injecte led_blink:XXX avant envoi
   function injectBlink() {
@@ -107,6 +109,7 @@ html = """
       .then(function(r) { return r.json(); })
       .then(function(data) {
         document.getElementById('luminosite').textContent = (data.luminosite !== null ? data.luminosite + '%' : '--');
+        document.getElementById('bouton').textContent = data.bouton || '--';
       })
       .catch(function() {});
   }
