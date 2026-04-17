@@ -7,7 +7,7 @@ Subscribe aux topics capteurs et stocke les valeurs dans des fichiers /tmp/.
 """
 
 import paho.mqtt.client as mqtt
-import sys, os, time, sqlite3
+import sys, os, time, sqlite3, datetime
 
 FIFO_S2F  = '/tmp/s2f_fw'
 BROKER_IP  = 'localhost'   # adresse du broker Mosquitto.
@@ -34,15 +34,30 @@ def init_db():
     # Se connecte à la base (la crée si elle n'existe pas)
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Création d'une table avec le nom du capteur comme clé primaire (pour écraser la valeur précédente)
+   
+   # 1. Table pour l'historique de la lumière (ajoute de nouvelles lignes)
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS capteurs (
+        CREATE TABLE IF NOT EXISTS historique (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT,
+            valeur TEXT,
+            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # 2. Table pour l'état instantané du bouton (écrase l'ancienne valeur)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS etat_actuel (
             nom TEXT PRIMARY KEY,
             valeur TEXT
         )
     ''')
     conn.commit()
     conn.close()
+    try:
+        os.chmod(DB_FILE, 0o666)
+    except Exception:
+        pass
     sys.stderr.write("Base de donnees SQLite initialisee.\n")
 
 init_db() # Appel de l'initialisation au démarrage
@@ -73,10 +88,11 @@ def on_message(client, userdata, msg):
 
     # Ecrire dans la bdd
     if msg.topic == TOPIC_LUMIERE:
-        cursor.execute("INSERT OR REPLACE INTO capteurs (nom, valeur) VALUES (?, ?)", ('lumiere', valeur))
+        heure_exacte = datetime.datetime.now().strftime('%H:%M:%S.%f')[:-5]
+        cursor.execute("INSERT INTO historique (nom, valeur, date) VALUES (?, ?, ?)", ('lumiere', valeur, heure_exacte))
         sys.stderr.write("BDD : lumiere mise a jour a %s\n" % valeur)
     elif msg.topic == TOPIC_BOUTON:
-        cursor.execute("INSERT OR REPLACE INTO capteurs (nom, valeur) VALUES (?, ?)", ('bouton', valeur))
+        cursor.execute("INSERT OR REPLACE INTO etat_actuel (nom, valeur) VALUES (?, ?)", ('bouton', valeur))
         sys.stderr.write("BDD : bouton mis a jour a %s\n" % valeur)
     conn.commit()
     conn.close()

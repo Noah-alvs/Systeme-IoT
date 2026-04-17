@@ -8,6 +8,7 @@ html = """
 <head>
   <meta charset="utf-8">
   <title>Peri Web Server</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <h1>Controle du ESP32</h1>
@@ -72,6 +73,10 @@ html = """
 
 <p><strong>Luminosite :</strong> <span id="luminosite">--</span></p>
 
+<div style="width: 100%; max-width: 600px; margin-bottom: 20px;">
+  <canvas id="lightChart"></canvas>
+</div>
+
 <p><strong>Bouton :</strong> <span id="bouton">--</span></p>
 
 <script>
@@ -104,18 +109,53 @@ html = """
     return true;
   }
 
+  
+  var ctx = document.getElementById('lightChart').getContext('2d');
+  var lightChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+          labels: [], // Les heures s'afficheront ici
+          datasets: [{
+              label: 'Luminosité (%)',
+              data: [], 
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              tension: 0.1,
+              fill: true
+          }]
+      },
+      options: {
+          scales: { y: { beginAtZero: true, max: 100 } },
+          animation: false // On désactive l'animation pour éviter que la courbe saute toutes les 2 secondes
+      }
+  });
+
+  
   function refresh() {
     fetch('/cgi-bin/get_capteurs.py')
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        document.getElementById('luminosite').textContent = (data.luminosite !== null ? data.luminosite + '%' : '--');
-        document.getElementById('bouton').textContent = data.bouton || '--';
-      })
-      .catch(function() {});
-  }
+       
+        document.getElementById('bouton').textContent = data.dernier_bouton || '--';
+        
+        
+        if (data.historique_lumiere.length > 0) {
+           
+            var derniereLum = data.historique_lumiere[data.historique_lumiere.length - 1];
+            document.getElementById('luminosite').textContent = derniereLum + '%';
+        } else {
+            document.getElementById('luminosite').textContent = '--';
+        }
 
+        
+        lightChart.data.labels = data.labels_temps;
+        lightChart.data.datasets[0].data = data.historique_lumiere;
+        lightChart.update();
+      })
+      .catch(function(e) { console.error("Erreur de récupération:", e); });
+  }
   refresh();
-  setInterval(refresh, 2000);
+  setInterval(refresh, 500);
 </script>
 </body>
 """

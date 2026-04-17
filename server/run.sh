@@ -33,6 +33,8 @@ fi
 
 echo "Lancement de la Gateway et du Serveur HTTP..."
 
+sudo rm /tmp/capteurs.db
+
 # Lancer la gateway dans un nouveau terminal
 gnome-terminal --title="Gateway MQTT" -- bash -c "python3 $(pwd)/gateway.py; exec bash"
 

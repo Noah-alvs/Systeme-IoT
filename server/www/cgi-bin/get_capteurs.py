@@ -1,48 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json, sys
-import sqlite3 
+import json, sqlite3, sys
 
-print("Content-Type: application/json")
-print("")
-
-# Valeurs par defaut
-data = {
-    "luminosite" : None,
-    "bouton": None,
-}
+print("Content-Type: application/json\n")
 
 DB_FILE = '/tmp/capteurs.db'
+data = {
+    "historique_lumiere": [],
+    "labels_temps": [],
+    "dernier_bouton": "--"
+}
 
 try:
-    # Connexion à la base de données
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # 1. Lecture de la luminosité
-    cursor.execute("SELECT valeur FROM capteurs WHERE nom='lumiere'")
-    row_lumiere = cursor.fetchone() # Récupère la première ligne correspondante
-    if row_lumiere:
-        data['luminosite'] = row_lumiere[0] # L'index 0 contient la 'valeur'
-        sys.stderr.write("Luminosite lue en BDD : %s\n" % data['luminosite'])
-    else:
-        sys.stderr.write("Aucune donnee de luminosite en BDD.\n")
+    # 1. Récupérer l'historique de la luminosité
+    cursor.execute("SELECT valeur, strftime('%H:%M:%S', date) FROM historique WHERE nom='lumiere' ORDER BY id DESC LIMIT 20")
+    rows = cursor.fetchall()
+    
+    for row in reversed(rows):
+        data["historique_lumiere"].append(float(row[0]))
+        data["labels_temps"].append(row[1])
 
-    # 2. Lecture du bouton
-    cursor.execute("SELECT valeur FROM capteurs WHERE nom='bouton'")
-    row_bouton = cursor.fetchone()
-    if row_bouton:
-        data['bouton'] = row_bouton[0]
-        sys.stderr.write("Bouton lu en BDD : %s\n" % data['bouton'])
-    else:
-        sys.stderr.write("Aucune donnee de bouton en BDD.\n")
+    # 1. Récupérer l'historique de la luminosité (40 points = 20 secondes)
+    cursor.execute("SELECT valeur, date FROM historique WHERE nom='lumiere' ORDER BY id DESC LIMIT 40")
+    row_b = cursor.fetchone()
+    if row_b: 
+        data["dernier_bouton"] = row_b[0]
 
     conn.close()
+except Exception as e:
+    sys.stderr.write("Erreur BDD: %s\n" % e)
 
-except sqlite3.Error as e:
-    # Capture les erreurs liées à SQLite (par ex: la base n'est pas encore créée par la gateway)
-    sys.stderr.write("Erreur d'accès à la BDD SQLite : %s\n" % e)
-
-# On renvoie le JSON quoi qu'il arrive (avec les valeurs ou None)
 print(json.dumps(data))
