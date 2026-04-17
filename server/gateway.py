@@ -7,7 +7,7 @@ Subscribe aux topics capteurs et stocke les valeurs dans des fichiers /tmp/.
 """
 
 import paho.mqtt.client as mqtt
-import sys, os, time
+import sys, os, time, sqlite3
 
 FIFO_S2F  = '/tmp/s2f_fw'
 BROKER_IP  = 'localhost'   # adresse du broker Mosquitto.
@@ -26,6 +26,26 @@ TOPIC_BOUTON = 'esp32/bouton'
 FICHIER_LUMIERE = '/tmp/capteur_lumiere.txt'
 FICHIER_BOUTON = '/tmp/capteur_bouton.txt'
 
+# Chemin de la base de données
+DB_FILE = '/tmp/capteurs.db'
+
+# Fonction pour initialiser la base de données
+def init_db():
+    # Se connecte à la base (la crée si elle n'existe pas)
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    # Création d'une table avec le nom du capteur comme clé primaire (pour écraser la valeur précédente)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS capteurs (
+            nom TEXT PRIMARY KEY,
+            valeur TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    sys.stderr.write("Base de donnees SQLite initialisee.\n")
+
+init_db() # Appel de l'initialisation au démarrage
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1) # Création d'une instance client.
 
@@ -46,16 +66,20 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     valeur = msg.payload.decode()
     sys.stderr.write("Capteur recu [%s] : %s\n" % (msg.topic, valeur))
- 
-    # Ecrire dans le fichier selon le topic
+    
+    # Ouverture de la connexion à la BDD à chaque message reçu
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    # Ecrire dans la bdd
     if msg.topic == TOPIC_LUMIERE:
-        with open(FICHIER_LUMIERE, 'w') as f:
-            f.write(valeur)
-        sys.stderr.write("Ecrit dans %s : %s\n" % (FICHIER_LUMIERE, valeur))
-    if msg.topic == TOPIC_BOUTON:
-        with open(FICHIER_BOUTON, 'w') as f:
-            f.write(msg.payload.decode())
-        sys.stderr.write("Ecrit dans %s : %s\n" % (FICHIER_BOUTON, valeur))
+        cursor.execute("INSERT OR REPLACE INTO capteurs (nom, valeur) VALUES (?, ?)", ('lumiere', valeur))
+        sys.stderr.write("BDD : lumiere mise a jour a %s\n" % valeur)
+    elif msg.topic == TOPIC_BOUTON:
+        cursor.execute("INSERT OR REPLACE INTO capteurs (nom, valeur) VALUES (?, ?)", ('bouton', valeur))
+        sys.stderr.write("BDD : bouton mis a jour a %s\n" % valeur)
+    conn.commit()
+    conn.close()
 
 client.on_connect = on_connect
 client.on_message = on_message
