@@ -22,10 +22,6 @@ TOPIC_OLED   = 'esp32/oled'
 TOPIC_LUMIERE = 'esp32/lumiere'
 TOPIC_BOUTON = 'esp32/bouton'
 
-# Fichiers de stockage, il sera lu par get_capteurs.py
-FICHIER_LUMIERE = '/tmp/capteur_lumiere.txt'
-FICHIER_BOUTON = '/tmp/capteur_bouton.txt'
-
 # Chemin de la base de données
 DB_FILE = '/tmp/capteurs.db'
 

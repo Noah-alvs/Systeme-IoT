@@ -397,10 +397,10 @@ void setup() {
   setup_led();
   setup_buzzer();
   setup_oled();
-  setup_bp();
   setup_wifi();
   setup_mqtt();
-
+  setup_bp();
+  
   init_lum(&Lum1,      1, 1000000/2);   // lecture toutes les 0.5s
   init_mqtt_lum(&Mqtt1, 2, 1000000/2);  // publication toutes les 0.5s
   init_oled_lum(&Oled1, 3, 1000000/2);   // affichage toutes les 0.5s
