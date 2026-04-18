@@ -3,7 +3,9 @@
 
 import json, sqlite3, sys
 
-print("Content-Type: application/json\n")
+# Séparation claire de l'en-tête HTTP pour éviter les erreurs du serveur
+print("Content-Type: application/json")
+print("")
 
 DB_FILE = '/tmp/capteurs.db'
 data = {
@@ -16,16 +18,21 @@ try:
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # 1. Récupérer l'historique de la luminosité
-    cursor.execute("SELECT valeur, strftime('%H:%M:%S', date) FROM historique WHERE nom='lumiere' ORDER BY id DESC LIMIT 20")
+    # 1. Récupérer l'historique de la luminosité (40 points = 20 secondes)
+    cursor.execute("SELECT valeur, date FROM historique WHERE nom='lumiere' ORDER BY id DESC LIMIT 40")
     rows = cursor.fetchall()
     
     for row in reversed(rows):
-        data["historique_lumiere"].append(float(row[0]))
-        data["labels_temps"].append(row[1])
+        try:
+            # Sécurité : on s'assure que la valeur est bien un nombre
+            valeur_float = float(row[0])
+            data["historique_lumiere"].append(valeur_float)
+            data["labels_temps"].append(row[1])
+        except ValueError:
+            pass # Si ce n'est pas un chiffre, on ignore ce point
 
-    # 1. Récupérer l'historique de la luminosité (40 points = 20 secondes)
-    cursor.execute("SELECT valeur, date FROM historique WHERE nom='lumiere' ORDER BY id DESC LIMIT 40")
+    # 2. Récupérer le dernier état du bouton dans la table 'etat_actuel'
+    cursor.execute("SELECT valeur FROM etat_actuel WHERE nom='bouton'")
     row_b = cursor.fetchone()
     if row_b: 
         data["dernier_bouton"] = row_b[0]
