@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Cleanup : tuer les anciens processus en une seule commande
+# Cleanup : tuer les anciens processus en une seule commande (sécurité au lancement)
 echo "Nettoyage des anciens processus..."
 pkill -f "gateway.py|server.py"
 
@@ -27,7 +27,8 @@ fi
 
 echo "Lancement de la Gateway et du Serveur HTTP..."
 
-rm /tmp/capteurs.db
+# Suppression de l'ancienne BDD sans sudo (le -f force sans erreur si le fichier n'existe pas)
+rm -f /tmp/capteurs.db
 
 # Lancer la gateway dans un nouveau terminal
 gnome-terminal --title="Gateway MQTT" -- bash -c "python3 $(pwd)/gateway.py; exec bash"
@@ -46,6 +47,6 @@ echo ""
 echo "  IP du PC sur le reseau :"
 echo "  $(hostname -I | awk '{print $1}')"
 echo ""
-echo "  Pour tout stopper :"
-echo "  pkill -f \"gateway.py|server.py\""
+echo "  Pour tout stopper proprement :"
+echo "  ./stop.sh"
 echo "============================================"

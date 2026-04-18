@@ -3,11 +3,11 @@
 
 """
 Gateway : lit les commandes depuis la FIFO s2f et les publie vers le broker MQTT.
-Subscribe aux topics capteurs et stocke les valeurs dans des fichiers /tmp/.
+Subscribe aux topics capteurs et stocke les valeurs dans une base de données SQLite.
 """
 
 import paho.mqtt.client as mqtt
-import sys, os, time, sqlite3, datetime
+import sys, os, time, sqlite3, datetime, signal
 
 FIFO_S2F  = '/tmp/s2f_fw'
 BROKER_IP  = 'localhost'   # adresse du broker Mosquitto.
@@ -99,6 +99,31 @@ client.connect(BROKER_IP, BROKER_PORT, 60)
 client.loop_start()  # thread interne non bloquant
 
 sys.stderr.write("Gateway en attente sur %s...\n" % FIFO_S2F)
+
+#Fonction de nettoyage
+def nettoyage_avant_arret(signum, frame):
+    sys.stderr.write("\n[SIGNAL] Arret demande. Nettoyage en cours...\n")
+    
+    # 1. On arrête la boucle MQTT proprement
+    client.loop_stop()
+    client.disconnect()
+    sys.stderr.write(" - MQTT deconnecte\n")
+    
+    # 2. On ferme et supprime la FIFO
+    try:
+        fifo_s2f.close()
+        os.remove(FIFO_S2F)
+        sys.stderr.write(" - FIFO supprimee\n")
+    except Exception:
+        pass
+    
+    # 3. On ferme le programme
+    sys.stderr.write("Gateway arretee proprement.\n")
+    sys.exit(0)
+
+# On indique à Python d'appeler cette fonction s'il reçoit un SIGTERM (pkill) ou un SIGINT (Ctrl+C)
+signal.signal(signal.SIGTERM, nettoyage_avant_arret)
+signal.signal(signal.SIGINT, nettoyage_avant_arret)
 
 
 while True:
