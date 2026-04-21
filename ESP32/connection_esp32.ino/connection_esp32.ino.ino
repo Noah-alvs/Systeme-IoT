@@ -11,15 +11,11 @@
 #include <Adafruit_SSD1306.h>
 
 
+
+
 // Configuration Reseau 
-const char* ssid = "Iphone de Safa";//Cette chaine de caractère représente le nom du réseau wifi auquel l'esp32 doit se connecter
-const char* password = "test_95400"; 
-// const char* ssid = "Box 4G SFR";
-// const char* password = "Sami7893"; 
-// const char* ssid = "A35 de Tarek";
-// const char* password = "nd34dtxjzy6tgwi"; 
-const char* BROKER_IP   = "172.20.10.10";  //ip du pc ou de la RPI
-const int   BROKER_PORT = 1883;
+#include "config.h"
+
 
 
 // TOPICS broker -> esp32
@@ -336,11 +332,11 @@ void setup_bp() {
 //Connexion Wifi
 void setup_wifi() {
    //Initialise la connexion wifi de l'esp32 
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   //Attente de la connexion
   Serial.print("Connexion à ");
-  Serial.print(ssid);
+  Serial.print(WIFI_SSID);
   Serial.println("...");
   while(WiFi.status() != WL_CONNECTED){
     delay(1000);

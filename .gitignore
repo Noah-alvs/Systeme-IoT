@@ -1,0 +1,9 @@
+# Secrets reseau
+config.h
+
+
+# Fichiers temporaires
+/tmp/
+*.db
+*.log
+build/
