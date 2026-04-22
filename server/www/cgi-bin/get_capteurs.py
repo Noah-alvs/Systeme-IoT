@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# Version PC
+# import json, sqlite3, sys
 
-import json, sqlite3, sys
+# Version Raspberry Pi
+import sys
+sys.path.insert(0,'/usr/local/lib/python3.13/dist-packages')
+import json, sqlite3
 
 # Séparation claire de l'en-tête HTTP pour éviter les erreurs du serveur
 print("Content-Type: application/json")

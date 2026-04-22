@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# Version PC
+# import cgi,sys
 
-import cgi, os, time,sys
-
-
+# Version RaspberryPi
+import sys
+sys.path.insert(0,'/usr/local/lib/python3.13/dist-packages')
+import cgi, os, time
 
 s2fName = '/tmp/s2f_fw'
 
